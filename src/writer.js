@@ -58,7 +58,7 @@ async function writeMarkdownFilesPromise(posts, config) {
   let delay = 0;
   const payloads = posts.flatMap((post) => {
     const destinationPath = getPostPath(post, config);
-    if (checkFile(destinationPath)) {
+    if (checkFile(destinationPath) && !config.reloadPosts) {
       // already exists, don't need to save again
       skipCount++;
       return [];
@@ -136,6 +136,7 @@ async function writeImageFilesPromise(posts, config) {
           destinationPath,
           delay,
         };
+        //console.log(filename);
         delay += settings.image_file_request_delay;
         return [payload];
       }

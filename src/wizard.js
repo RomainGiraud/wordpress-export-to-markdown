@@ -75,6 +75,12 @@ const options = [
     description: "Include custom post types and pages",
     default: false,
   },
+  {
+    name: "reload-posts",
+    type: "boolean",
+    description: "Update index.md files without touching images",
+    default: false,
+  },
 ];
 
 async function getConfig(argv) {
