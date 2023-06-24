@@ -76,9 +76,9 @@ const options = [
     default: false,
   },
   {
-    name: "reload-posts",
+    name: "regenerate-markdown",
     type: "boolean",
-    description: "Update index.md files without touching images",
+    description: "Force generation of markdown files (without touching images)",
     default: false,
   },
 ];

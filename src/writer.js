@@ -58,8 +58,8 @@ async function writeMarkdownFilesPromise(posts, config) {
   let delay = 0;
   const payloads = posts.flatMap((post) => {
     const destinationPath = getPostPath(post, config);
-    if (checkFile(destinationPath) && !config.reloadPosts) {
-      // already exists, don't need to save again
+    if (checkFile(destinationPath) && !config.regenerateMarkdown) {
+      // already exists, don't need to save again except if wanted
       skipCount++;
       return [];
     } else {
