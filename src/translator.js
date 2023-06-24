@@ -1,6 +1,23 @@
 const turndown = require("turndown");
 const turndownPluginGfm = require("turndown-plugin-gfm");
 
+function upTo(el, tagName) {
+  tagName = tagName.toLowerCase();
+
+  while (el && el.parentNode) {
+    el = el.parentNode;
+    if (el.tagName && el.tagName.toLowerCase() == tagName) {
+      return el;
+    }
+  }
+
+  // Many DOM methods return null if they don't
+  // find the element they are searching for
+  // It would be OK to omit the following and just
+  // return undefined
+  return null;
+}
+
 function initTurndownService() {
   const turndownService = new turndown({
     headingStyle: "atx",
@@ -58,6 +75,89 @@ function initTurndownService() {
     },
   });
 
+  turndownService.remove("figcaption");
+
+  getImages = function (node) {
+    let imgs = {};
+    Array.from(node.getElementsByTagName("img")).forEach(function (i) {
+      imgs[i.getAttribute("src").toString()] = i.getAttribute("alt").toString();
+    });
+    return imgs;
+  };
+  getCaption = function (node) {
+    let caption = "";
+    Array.from(node.getElementsByTagName("figcaption")).forEach(function (c) {
+      caption += c.textContent;
+    });
+    return caption;
+  };
+  turndownService.addRule("caption", {
+    filter: "figure",
+    replacement: (content, node) => {
+      //console.log("=====");
+      //parent = upTo(node, "figure");
+      //console.log(parent.tagName);
+      //const html = node.outerHTML.replace('allowfullscreen=""', 'allowfullscreen');
+      //return '\n\n' + html + '\n\n';
+
+      let mainCaption = getCaption(node);
+
+      let imgs = {};
+      Array.from(node.getElementsByTagName("figure")).forEach(function (f) {
+        let currentImgs = getImages(f);
+        let keys = Object.keys(currentImgs);
+        if (keys.length == 0 && keys.length > 1) {
+          console.log("error: too much images in figure");
+          return;
+        }
+        if (keys[0] in turndownService.images) {
+          return;
+        }
+
+        imgs[keys[0]] = getCaption(f) || currentImgs[keys[0]];
+        //console.log(`== ${keys[0]} ==`);
+      });
+      for (let [key, value] of Object.entries(getImages(node))) {
+        if (key in turndownService.images) {
+          continue;
+        }
+        if (key in imgs) {
+          continue;
+        }
+        imgs[key] = value;
+      }
+
+      let imgList = "";
+      for (let [key, value] of Object.entries(imgs)) {
+        turndownService.images.push(key);
+        imgList += key;
+        if (value) imgList += "|" + value;
+        imgList += ";";
+      }
+      imgList = imgList.substring(0, imgList.length - 1);
+      if (imgList.length == 0) {
+        return "";
+      }
+      //console.log("===" + mainCaption + "===");
+
+      return `\n\n{{< grid-images width="3" images="${imgList}" caption="${mainCaption}" >}}\n\n`;
+    },
+  });
+
+  turndownService.addRule("img", {
+    filter: "img",
+    replacement: (content, node) => {
+      function ImgResult(node) {
+        this.str = turndownService.turndown(node);
+        this.img = node.getAttribute("src");
+      }
+      ImgResult.prototype.toString = function () {
+        return this.str;
+      };
+      return new ImgResult(node);
+    },
+  });
+
   return turndownService;
 }
 
@@ -84,7 +184,9 @@ function getPostContent(post, turndownService, config) {
   content = content.replace(/(<\/iframe>)/gi, ".$1");
 
   // use turndown to convert HTML to Markdown
+  turndownService.images = [];
   content = turndownService.turndown(content);
+  console.log(turndownService.images);
 
   // clean up extra spaces in list items
   content = content.replace(/(-|\d+\.) +/g, "$1 ");
