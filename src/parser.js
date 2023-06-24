@@ -79,6 +79,7 @@ function collectPosts(data, postTypes, config) {
         frontmatter: {
           title: getPostTitle(post),
           date: getPostDate(post),
+          old_url: getPostLink(post),
           categories: getCategories(post),
           tags: getTags(post),
         },
@@ -133,6 +134,10 @@ function getPostDate(post) {
   } else {
     return dateTime.toISODate();
   }
+}
+
+function getPostLink(post) {
+  return post.link[0];
 }
 
 function getCategories(post) {
