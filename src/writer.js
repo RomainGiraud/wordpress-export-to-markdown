@@ -2,10 +2,12 @@ const chalk = require("chalk");
 const fs = require("fs");
 const luxon = require("luxon");
 const path = require("path");
-const requestPromiseNative = require("request-promise-native");
+const bent = require("bent");
 
 const shared = require("./shared");
 const settings = require("./settings");
+
+const getBuffer = bent('buffer');
 
 async function writeFilesPromise(posts, config) {
   await writeMarkdownFilesPromise(posts, config);
@@ -160,13 +162,7 @@ async function loadImageFilePromise(imageUrl) {
 
   let buffer;
   try {
-    buffer = await requestPromiseNative.get({
-      url,
-      encoding: null, // preserves binary encoding
-      headers: {
-        "User-Agent": "wordpress-export-to-markdown",
-      },
-    });
+    buffer = await getBuffer(url);
   } catch (ex) {
     if (ex.name === "StatusCodeError") {
       // these errors contain a lot of noise, simplify to just the status code
