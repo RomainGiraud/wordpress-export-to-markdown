@@ -1,5 +1,6 @@
 const turndown = require("turndown");
 const turndownPluginGfm = require("turndown-plugin-gfm");
+const he = require("he");
 
 function upTo(el, tagName) {
   tagName = tagName.toLowerCase();
@@ -100,7 +101,7 @@ function initTurndownService() {
       //const html = node.outerHTML.replace('allowfullscreen=""', 'allowfullscreen');
       //return '\n\n' + html + '\n\n';
 
-      let mainCaption = getCaption(node);
+      let mainCaption = he.encode(getCaption(node));
 
       let imgs = {};
       Array.from(node.getElementsByTagName("figure")).forEach(function (f) {
@@ -131,7 +132,7 @@ function initTurndownService() {
       for (let [key, value] of Object.entries(imgs)) {
         turndownService.images.push(key);
         imgList += key;
-        if (value) imgList += "'" + value;
+        if (value) imgList += "'" + he.encode(value);
         imgList += "|";
       }
       imgList = imgList.substring(0, imgList.length - 1);
