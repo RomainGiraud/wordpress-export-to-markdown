@@ -131,8 +131,8 @@ function initTurndownService() {
       for (let [key, value] of Object.entries(imgs)) {
         turndownService.images.push(key);
         imgList += key;
-        if (value) imgList += "|" + value;
-        imgList += ";";
+        if (value) imgList += "'" + value;
+        imgList += "|";
       }
       imgList = imgList.substring(0, imgList.length - 1);
       if (imgList.length == 0) {
@@ -140,7 +140,7 @@ function initTurndownService() {
       }
       //console.log("===" + mainCaption + "===");
 
-      return `\n\n{{< grid-images width="3" images="${imgList}" caption="${mainCaption}" >}}\n\n`;
+      return `\n\n{{< gallery caption="${mainCaption}" images="${imgList}" >}}\n\n`;
     },
   });
 
