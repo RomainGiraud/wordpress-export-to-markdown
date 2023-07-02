@@ -1,4 +1,5 @@
 const fs = require("fs");
+const path = require("path");
 const luxon = require("luxon");
 const xml2js = require("xml2js");
 
@@ -26,6 +27,7 @@ async function parseFilePromise(config) {
   }
 
   mergeImagesIntoPosts(images, posts);
+  cleanImages(posts, config);
 
   return posts;
 }
@@ -230,6 +232,37 @@ function mergeImagesIntoPosts(images, posts) {
         post.meta.imageUrls.push(image.url);
       }
     });
+  });
+}
+
+function cleanImages(posts, config) {
+  if (config.imagesFromFolder.length == 0) {
+    console.warn("Cannot cleanImages by URL")
+    return;
+  }
+
+  const patterns = [
+    /-[0-9]+x[0-9]+\./,
+    /-scaled\./,
+  ];
+  posts.forEach((post) => {
+    post.meta.imageUrls = post.meta.imageUrls.map((imageUrl) => {
+      let newUrl = imageUrl;
+      patterns.forEach((pattern) => {
+        const dirname = path.dirname(newUrl);
+        const filename = path.basename(newUrl);
+        const newFilename = filename.replace(pattern, ".");
+        const tmp = path.join(dirname, newFilename);
+        post.content.replace(newUrl, tmp);
+        newUrl = tmp;
+        // console.log(`-- ${filename} <> ${newFilename}`);
+      });
+      return newUrl;
+    });
+    // console.log(post);
+    // if (shouldAttach && !post.meta.imageUrls.includes(image.url)) {
+    //   post.meta.imageUrls.push(image.url);
+    // }
   });
 }
 
