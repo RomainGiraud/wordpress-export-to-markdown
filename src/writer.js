@@ -57,34 +57,44 @@ async function writeFile(destinationPath, data) {
 async function writeMarkdownFilesPromise(posts, config) {
   // package up posts into payloads
   let skipCount = 0;
+  let regenerateCount = 0;
   let delay = 0;
   const payloads = posts.flatMap((post) => {
     const destinationPath = getPostPath(post, config);
-    if (checkFile(destinationPath) && !config.regenerateMarkdown) {
-      // already exists, don't need to save again except if wanted
-      skipCount++;
-      return [];
-    } else {
-      const payload = {
-        item: post,
-        name:
-          (config.includeOtherTypes ? post.meta.type + " - " : "") +
-          post.meta.slug,
-        destinationPath,
-        delay,
-      };
-      delay += settings.markdown_file_write_delay;
-      return [payload];
+    if (checkFile(destinationPath)) {
+      if (config.regenerateMarkdown) {
+        regenerateCount++;
+      } else {
+        skipCount++;
+        return [];
+      }
     }
+
+    const payload = {
+      item: post,
+      name:
+      (config.includeOtherTypes ? post.meta.type + " - " : "") +
+        post.meta.slug,
+      destinationPath,
+      delay,
+    };
+    delay += settings.markdown_file_write_delay;
+    return [payload];
   });
 
   const remainingCount = payloads.length;
   if (remainingCount + skipCount === 0) {
     console.log("\nNo posts to save...");
   } else {
-    console.log(
-      `\nSaving ${remainingCount} posts (${skipCount} already exist)...`
-    );
+    if (config.regenerateMarkdown) {
+      console.log(
+        `\nSaving ${remainingCount} posts (${regenerateCount} will be rewritten)...`
+      );
+    } else {
+      console.log(
+        `\nSaving ${remainingCount} posts (${skipCount} already exist)...`
+      );
+    }
     await processPayloadsPromise(payloads, loadMarkdownFilePromise);
   }
 }
@@ -164,10 +174,10 @@ async function loadImageFilePromise(imageUrl) {
   try {
     buffer = await getBuffer(url);
   } catch (ex) {
-    if (ex.name === "StatusCodeError") {
-      // these errors contain a lot of noise, simplify to just the status code
-      ex.message = ex.statusCode;
-    }
+    // if (ex.name === "StatusCodeError") {
+    //   // these errors contain a lot of noise, simplify to just the status code
+    //   ex.message = ex.statusCode;
+    // }
     throw ex;
   }
   return buffer;
