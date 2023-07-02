@@ -81,6 +81,13 @@ const options = [
     description: "Force generation of markdown files (without touching images)",
     default: false,
   },
+  {
+    name: "only-posts",
+    type: "input",
+    description: "List post ids separated by comma",
+    default: "",
+    coerce: coerceIdList,
+  },
 ];
 
 async function getConfig(argv) {
@@ -180,6 +187,8 @@ function parseCommandLine(argv) {
       // commander only calls coerce when an input is provided on the command line, which
       // makes for an easy way to flag (for later) if it should be excluded from the wizard
       input.isProvided = true;
+      if (! ("coerce" in input))
+        return true;
       return input.coerce(value);
     };
     commander.option(flag, input.description, coerce, input.default);
@@ -194,6 +203,10 @@ function coerceBoolean(value) {
 
 function coercePath(value) {
   return path.normalize(value);
+}
+
+function coerceIdList(value) {
+  return value.split(",");
 }
 
 function validateFile(value) {

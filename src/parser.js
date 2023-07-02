@@ -67,6 +67,9 @@ function collectPosts(data, postTypes, config) {
       .filter(
         (post) => post.status[0] !== "trash" && post.status[0] !== "draft"
       )
+      .filter(
+        (post) => (config.onlyPosts.length != 0 ? config.onlyPosts.includes(getPostId(post)) : true)
+      )
       .map((post) => ({
         // meta data isn't written to file, but is used to help with other things
         meta: {
