@@ -88,6 +88,12 @@ const options = [
     default: "",
     coerce: coerceIdList,
   },
+  {
+    name: "images-from-folder",
+    type: "folder",
+    description: "Get images from local folder",
+    default: "",
+  },
 ];
 
 async function getConfig(argv) {

@@ -1,5 +1,6 @@
 const chalk = require("chalk");
 const fs = require("fs");
+const fsp = require('fs/promises');
 const luxon = require("luxon");
 const path = require("path");
 const bent = require("bent");
@@ -142,6 +143,20 @@ async function writeImageFilesPromise(posts, config) {
         skipCount++;
         return [];
       } else {
+        if (config.imagesFromFolder.length != 0) {
+          let pathSegments = [];
+          for (elem of imageUrl.split(path.sep).reverse()) {
+            if (elem == "uploads") break;
+            pathSegments.push(elem);
+          }
+          pathSegments.push(config.imagesFromFolder);
+          const localPath = path.resolve(path.join(...pathSegments.reverse()));
+          if (checkFile(localPath)) {
+            imageUrl = localPath;
+          } else {
+            throw `Local path to ${filename} doest not exists (${localPath})`
+          }
+        }
         const payload = {
           item: imageUrl,
           name: filename,
@@ -162,25 +177,20 @@ async function writeImageFilesPromise(posts, config) {
     console.log(
       `\nDownloading and saving ${remainingCount} images (${skipCount} already exist)...`
     );
-    await processPayloadsPromise(payloads, loadImageFilePromise);
+
+    await processPayloadsPromise(payloads, config.imagesFromFolder ? loadImageFilePromiseLocal : loadImageFilePromiseUrl);
   }
 }
 
-async function loadImageFilePromise(imageUrl) {
+async function loadImageFilePromiseUrl(imageUrl) {
   // only encode the URL if it doesn't already have encoded characters
   const url = /%[\da-f]{2}/i.test(imageUrl) ? imageUrl : encodeURI(imageUrl);
 
-  let buffer;
-  try {
-    buffer = await getBuffer(url);
-  } catch (ex) {
-    // if (ex.name === "StatusCodeError") {
-    //   // these errors contain a lot of noise, simplify to just the status code
-    //   ex.message = ex.statusCode;
-    // }
-    throw ex;
-  }
-  return buffer;
+  return await getBuffer(url);
+}
+
+async function loadImageFilePromiseLocal(imagePath) {
+  return await fsp.readFile(imagePath);
 }
 
 function getPostPath(post, config) {
