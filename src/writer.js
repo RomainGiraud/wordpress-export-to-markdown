@@ -12,6 +12,7 @@ const getBuffer = bent('buffer');
 
 async function writeFilesPromise(posts, config) {
   await writeMarkdownFilesPromise(posts, config);
+  await writeCommentFilesPromise(posts, config);
   await writeImageFilesPromise(posts, config);
 }
 
@@ -53,6 +54,50 @@ async function processPayloadsPromise(payloads, loadFunc) {
 async function writeFile(destinationPath, data) {
   await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
   await fs.promises.writeFile(destinationPath, data);
+}
+
+async function writeCommentFilesPromise(posts, config) {
+  let skipCount = 0;
+  let regenerateCount = 0;
+  let delay = 0;
+  const payloads = posts.flatMap((post) => {
+    return post.comments.flatMap((comment) => {
+      const destinationPath = getCommentPath(comment, post, config);
+      if (checkFile(destinationPath)) {
+        if (config.regenerateMarkdown) {
+          regenerateCount++;
+        } else {
+          skipCount++;
+          return [];
+        }
+      }
+
+      const payload = {
+        item: comment,
+        name: path.basename(destinationPath),
+        destinationPath,
+        delay,
+      };
+      delay += settings.markdown_file_write_delay;
+      return [payload];
+    });
+  });
+
+  const remainingCount = payloads.length;
+  if (remainingCount + skipCount === 0) {
+    console.log("\nNo comments to save...");
+  } else {
+    if (config.regenerateMarkdown) {
+      console.log(
+        `\nSaving ${remainingCount} comments (${regenerateCount} will be rewritten)...`
+      );
+    } else {
+      console.log(
+        `\nSaving ${remainingCount} comments (${skipCount} already exist)...`
+      );
+    }
+    await processPayloadsPromise(payloads, loadCommentFilePromise);
+  }
 }
 
 async function writeMarkdownFilesPromise(posts, config) {
@@ -98,6 +143,37 @@ async function writeMarkdownFilesPromise(posts, config) {
     }
     await processPayloadsPromise(payloads, loadMarkdownFilePromise);
   }
+}
+
+async function loadCommentFilePromise(comment) {
+  let output = "";
+
+  Object.entries(comment).forEach(([key, value]) => {
+    let outputValue;
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        // array of one or more strings
+        outputValue = value.reduce(
+          (list, item) => `${list}\n  - "${item}"`,
+          ""
+        );
+      }
+    } else {
+      if (value.search('\n') !== -1) {
+        outputValue = `>-\n  ${value.replaceAll('\n', '\n  ')}`;
+      } else {
+        // single string value
+        const escapedValue = (value || "").replace(/"/g, '\\"');
+        outputValue = `"${escapedValue}"`;
+      }
+    }
+
+    if (outputValue !== undefined) {
+      output += `${key}: ${outputValue}\n`;
+    }
+  });
+
+  return output;
 }
 
 async function loadMarkdownFilePromise(post) {
@@ -193,6 +269,28 @@ async function loadImageFilePromiseLocal(imagePath) {
   return await fsp.readFile(imagePath);
 }
 
+function getCommentPath(comment, post, config) {
+  const dt = luxon.DateTime.fromISO(comment.date);
+
+  const pathSegments = [config.outputComments];
+  let slugFragment = getBasePath(post, config)
+  pathSegments.push(slugFragment, `comment-${dt.toMillis()}.yml`);
+
+  return path.join(...pathSegments);
+}
+
+function getBasePath(post, config) {
+  const dt = luxon.DateTime.fromISO(post.frontmatter.date);
+
+  // create slug fragment, possibly date prefixed
+  let slugFragment = post.meta.slug;
+  if (config.prefixDate) {
+    slugFragment = dt.toFormat("yyyy-LL-dd") + "-" + slugFragment;
+  }
+
+  return slugFragment;
+}
+
 function getPostPath(post, config) {
   const dt = luxon.DateTime.fromISO(post.frontmatter.date);
 
@@ -213,10 +311,7 @@ function getPostPath(post, config) {
   }
 
   // create slug fragment, possibly date prefixed
-  let slugFragment = post.meta.slug;
-  if (config.prefixDate) {
-    slugFragment = dt.toFormat("yyyy-LL-dd") + "-" + slugFragment;
-  }
+  let slugFragment = getBasePath(post, config)
 
   // use slug fragment as folder or filename as specified
   if (config.postFolders) {

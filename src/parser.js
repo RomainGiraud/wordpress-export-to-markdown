@@ -32,6 +32,21 @@ async function parseFilePromise(config) {
   return posts;
 }
 
+function getComments(post) {
+  return post.comment
+    .filter(comment => comment.comment_approved[0] == "1")
+    .map((comment) => {
+      return {
+        "_id": comment.comment_id[0],
+        "_parent": comment.comment_parent[0],
+        "message": comment.comment_content[0],
+        "name": comment.comment_author[0],
+        "email": comment.comment_author_email[0],
+        "date": getCommentDate(comment.comment_date[0]),
+      };
+    });
+}
+
 function getPostTypes(data, config) {
   if (config.includeOtherTypes) {
     // search export file for all post types minus some default types we don't want
@@ -73,6 +88,7 @@ function collectPosts(data, postTypes, config) {
         (post) => (config.onlyPosts.length != 0 ? config.onlyPosts.includes(getPostId(post)) : true)
       )
       .map((post) => ({
+        comments: getComments(post),
         // meta data isn't written to file, but is used to help with other things
         meta: {
           id: getPostId(post),
@@ -126,6 +142,19 @@ function getPostCoverImageId(post) {
 
 function getPostTitle(post) {
   return post.title[0];
+}
+
+function getCommentDate(date) {
+  const zone = settings.local_date ? "local" : "utc";
+  const dateTime = luxon.DateTime.fromFormat(date, "yyyy-MM-dd HH:mm:ss", { zone: zone });
+
+  if (settings.custom_date_formatting) {
+    return dateTime.toFormat(settings.custom_date_formatting);
+  } else if (settings.include_time_with_date) {
+    return dateTime.toISO();
+  } else {
+    return dateTime.toISODate();
+  }
 }
 
 function getPostDate(post) {

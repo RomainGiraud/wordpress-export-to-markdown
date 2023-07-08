@@ -28,6 +28,12 @@ const options = [
     default: "output",
   },
   {
+    name: "output-comments",
+    type: "folder",
+    description: "Path to comments output folder",
+    default: "output",
+  },
+  {
     name: "year-folders",
     aliases: ["yearfolders", "yearmonthfolders"],
     type: "boolean",
