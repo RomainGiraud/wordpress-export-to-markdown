@@ -253,16 +253,16 @@ function cleanImages(posts, config) {
         const filename = path.basename(newUrl);
         const newFilename = filename.replace(pattern, ".");
         const tmp = path.join(dirname, newFilename);
-        post.content.replace(newUrl, tmp);
+        if (filename != newFilename) {
+          post.content = post.content.replace(filename, newFilename);
+          if (path.basename(post.frontmatter.featured_image) == filename) {
+            post.frontmatter.featured_image = post.frontmatter.featured_image.replace(filename, newFilename);
+          }
+        }
         newUrl = tmp;
-        // console.log(`-- ${filename} <> ${newFilename}`);
       });
       return newUrl;
     });
-    // console.log(post);
-    // if (shouldAttach && !post.meta.imageUrls.includes(image.url)) {
-    //   post.meta.imageUrls.push(image.url);
-    // }
   });
 }
 

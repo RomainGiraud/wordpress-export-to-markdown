@@ -23,6 +23,7 @@
 		"bent": "^7.3.12",
 		"camelcase": "^6.0.0",
 		"chalk": "^4.0.0",
+		"cheerio": "^1.0.0-rc.12",
 		"commander": "^5.0.0",
 		"compare-versions": "^3.6.0",
 		"he": "^1.2.0",

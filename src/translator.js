@@ -1,23 +1,8 @@
 const turndown = require("turndown");
 const turndownPluginGfm = require("turndown-plugin-gfm");
 const he = require("he");
-
-function upTo(el, tagName) {
-  tagName = tagName.toLowerCase();
-
-  while (el && el.parentNode) {
-    el = el.parentNode;
-    if (el.tagName && el.tagName.toLowerCase() == tagName) {
-      return el;
-    }
-  }
-
-  // Many DOM methods return null if they don't
-  // find the element they are searching for
-  // It would be OK to omit the following and just
-  // return undefined
-  return null;
-}
+const cheerio = require("cheerio");
+const path = require("path");
 
 function initTurndownService() {
   const turndownService = new turndown({
@@ -70,130 +55,186 @@ function initTurndownService() {
     replacement: (content, node) => {
       const html = node.outerHTML.replace(
         'allowfullscreen=""',
-        "allowfullscreen"
+        'allow="fullscreen"'
       );
       return "\n\n" + html + "\n\n";
     },
   });
 
-  turndownService.remove("figcaption");
-
-  getImages = function (node) {
-    let imgs = {};
-    Array.from(node.getElementsByTagName("img")).forEach(function (i) {
-      imgs[i.getAttribute("src").toString()] = i.getAttribute("alt").toString();
-    });
-    return imgs;
-  };
-  getCaption = function (node) {
-    let caption = "";
-    Array.from(node.getElementsByTagName("figcaption")).forEach(function (c) {
-      caption += c.textContent;
-    });
-    return caption;
-  };
-  turndownService.addRule("caption", {
+  // convert figure to gallery shortcode
+  turndownService.addRule("gallery", {
     filter: "figure",
     replacement: (content, node) => {
-      //console.log("=====");
-      //parent = upTo(node, "figure");
-      //console.log(parent.tagName);
-      //const html = node.outerHTML.replace('allowfullscreen=""', 'allowfullscreen');
-      //return '\n\n' + html + '\n\n';
-
-      let mainCaption = he.encode(getCaption(node));
-
-      let imgs = {};
-      Array.from(node.getElementsByTagName("figure")).forEach(function (f) {
-        let currentImgs = getImages(f);
-        let keys = Object.keys(currentImgs);
-        if (keys.length == 0 && keys.length > 1) {
-          console.log("error: too much images in figure");
-          return;
+      let caption = "";
+      let images = [];
+      for (const child of node.childNodes) {
+        if (child.tagName == "FIGCAPTION") {
+          caption = child.textContent;
+        } else if (child.tagName == "IMG") {
+          let src = child.getAttribute("src");
+          let alt = child.getAttribute("alt");
+          if (alt.length != 0) {
+            alt = `'${he.encode(alt)}`
+          }
+          images.push(`${src}${alt}`)
         }
-        if (keys[0] in turndownService.images) {
-          return;
-        }
-
-        imgs[keys[0]] = getCaption(f) || currentImgs[keys[0]];
-        //console.log(`== ${keys[0]} ==`);
-      });
-      for (let [key, value] of Object.entries(getImages(node))) {
-        if (key in turndownService.images) {
-          continue;
-        }
-        if (key in imgs) {
-          continue;
-        }
-        imgs[key] = value;
       }
-
-      let imgList = "";
-      for (let [key, value] of Object.entries(imgs)) {
-        turndownService.images.push(key);
-        imgList += key;
-        if (value) imgList += "'" + he.encode(value);
-        imgList += "|";
-      }
-      imgList = imgList.substring(0, imgList.length - 1);
-      if (imgList.length == 0) {
-        return "";
-      }
-      //console.log("===" + mainCaption + "===");
-
-      return `\n\n{{< gallery caption="${mainCaption}" images="${imgList}" >}}\n\n`;
-    },
-  });
-
-  turndownService.addRule("img", {
-    filter: "img",
-    replacement: (content, node) => {
-      function ImgResult(node) {
-        this.str = turndownService.turndown(node);
-        this.img = node.getAttribute("src");
-      }
-      ImgResult.prototype.toString = function () {
-        return this.str;
-      };
-      return new ImgResult(node);
+      return "\n\n" + `{{< gallery caption="${he.encode(caption)}" images="${images.join('|')}" >}}` + "\n\n";
     },
   });
 
   return turndownService;
 }
 
+function encodeText(text) {
+  return text.trim().replace('"', '&quot;');
+}
+
+function parseFigureSingle($, node) {
+  let image;
+  let caption = "";
+
+  let a = node.find('a');
+  if (a.length == 0) {
+    let img = node.find('img');
+    if (img.length > 1) {
+      throw "multiple img tag in a single figure";
+    }
+
+    image = img;
+  } else if (a.length == 1) {
+    let img = a.find('img');
+    if (img.length > 1) {
+      throw "multiple img tag in a single figure";
+    }
+
+    let href = a.attr('href');
+    let src = img.attr('src');
+    if (href != src) {
+      throw `Not the same link: a[href] ${href} / img[src] ${src}`;
+    }
+
+    image = img;
+  } else /*a.length > 1*/ {
+    throw "multiple a tag in a single figure";
+  }
+
+  caption = image.attr('alt');
+
+  let cap = node.find('figcaption');
+  if (cap.length > 1) {
+      throw "multiple figcaption tag in a single figure";
+  } else {
+    cap = $(cap.get(0)).text();
+    if (caption.length == 0) {
+      caption = cap;
+    } else {
+      if (cap.length != 0 && cap != caption) {
+        throw "alt and figcaption set in a single figure";
+      }
+    }
+  }
+
+  node.remove();
+  let url = image.attr('src');
+  return [`images/${path.basename(url)}`, encodeText(caption)];
+}
+
+function parseFigureMult($, node) {
+  let images = [];
+  for (const fig of node.find('figure')) {
+    let node = $(fig);
+    images.push(parseFigureSingle($, node));
+  }
+
+  let mainCaption = "";
+  let caption = node.first('figcaption');
+  if (caption) {
+    mainCaption = $(caption).text();
+  }
+
+  return [mainCaption, images];
+}
+
 function getPostContent(post, turndownService, config) {
   let content = post.encoded[0];
 
-  // insert an empty div element between double line breaks
-  // this nifty trick causes turndown to keep adjacent paragraphs separated
-  // without mucking up content inside of other elemnts (like <code> blocks)
-  content = content.replace(/(\r?\n){2}/g, "\n<div></div>\n");
+  const $ = cheerio.load(content, null, false)
+  
+  // remove comments
+  $.root().contents().filter(function() { return this.type === 'comment'; }).remove();
 
-  if (config.saveScrapedImages) {
-    // writeImageFile() will save all content images to a relative /images
-    // folder so update references in post content to match
-    content = content.replace(
-      /(<img[^>]*src=").*?([^/"]+\.(?:gif|jpe?g|png))("[^>]*>)/gi,
-      "$1images/$2$3"
-    );
+  // transforms figures to gallery
+  let imageList = [];
+  let galleries = [];
+  let gallery = {
+    "caption": "",
+    "images": [],
+  };
+  function pushGallery() {
+    if (gallery.images.length === 0) {
+      return;
+    }
+    galleries.push(gallery);
+    gallery = {
+      "caption": "",
+      "images": [],
+    };
+  }
+  function writeGallery(object, insertFn) {
+    pushGallery();
+
+    for (const g of galleries) {
+      let images = g.images.map((i) => {
+        return `<img src="${i.src}" alt="${he.encode(i.caption)}" />`;
+      }).join("\n");
+      insertFn.call(object, `<figure>\n<figcaption>${he.encode(g.caption)}</figcaption>\n${images}\n</figure>\n`);
+    }
+    galleries = [];
   }
 
-  // this is a hack to make <iframe> nodes non-empty by inserting a "." which
-  // allows the iframe rule declared in initTurndownService() to take effect
-  // (using turndown's blankRule() and keep() solution did not work for me)
-  content = content.replace(/(<\/iframe>)/gi, ".$1");
+  let node;
+  for (let el of $.root().children()) {
+    node = $(el);
+    if (node.hasClass('wp-block-image')) {
+      const [url, caption] = parseFigureSingle($, node);
+      gallery.images.push({"src": url, "caption": caption});
+      imageList.push(url);
+      node.remove();
+    } else if (node.hasClass('wp-block-gallery')) {
+      const [mainCaption, images] = parseFigureMult($, node);
+      // push previous gallery
+      if (mainCaption.length != 0) {
+        pushGallery();
+        gallery.caption = mainCaption;
+      }
+      for (const [url, caption] of images) {
+        gallery.images.push({"src": url, "caption": caption});
+        imageList.push(url);
+      }
+      if (mainCaption.length != 0) {
+        pushGallery();
+      }
+      node.remove();
+    } else {
+      writeGallery(node, node.before);
+    }
+  }
+  // push remaining gallery
+  writeGallery($.root(), $.root().appendTo);
+
+  let imageRegexp = content.match(/<img[^>]*>/g);
+  if (imageList.length != imageRegexp.length) {
+    console.log(`Count images: ${imageList.length} / ${imageRegexp.length}`)
+    console.log(imageList)
+    console.log("-------")
+    console.log(imageRegexp)
+  }
+
+  content = $.html();
 
   // use turndown to convert HTML to Markdown
-  turndownService.images = [];
   content = turndownService.turndown(content);
-  console.log(turndownService.images);
-
-  // clean up extra spaces in list items
-  content = content.replace(/(-|\d+\.) +/g, "$1 ");
-
-  // clean up the "." from the iframe hack above
-  content = content.replace(/\.(<\/iframe>)/gi, "$1");
 
   return content;
 }
