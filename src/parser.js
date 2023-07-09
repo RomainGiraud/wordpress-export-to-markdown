@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const luxon = require("luxon");
 const xml2js = require("xml2js");
+const nodersa = require('node-rsa')
 
 const shared = require("./shared");
 const settings = require("./settings");
@@ -32,7 +33,14 @@ async function parseFilePromise(config) {
   return posts;
 }
 
-function getComments(post) {
+function encrypt(value, keyFile) {
+  let rsa = new nodersa();
+  let key = fs.readFileSync(keyFile, 'utf8');
+  rsa.importKey(key, 'pkcs1-public-pem');
+  return rsa.encrypt(value, 'base64', 'utf-8')
+}
+
+function getComments(post, config) {
   return post.comment
     .filter(comment => comment.comment_approved[0] == "1")
     .map((comment) => {
@@ -44,6 +52,18 @@ function getComments(post) {
         "email": comment.comment_author_email[0],
         "date": getCommentDate(comment.comment_date[0]),
       };
+    })
+    .map((comment) => {
+      if (config.commentKeysToEncrypt.length == 0) {
+        return comment;
+      }
+
+      for (const k in comment) {
+        if (config.commentKeysToEncrypt.includes(k)) {
+          comment[k] = encrypt(comment[k], config.publicKey)
+        }
+      }
+      return comment;
     });
 }
 
@@ -88,7 +108,7 @@ function collectPosts(data, postTypes, config) {
         (post) => (config.onlyPosts.length != 0 ? config.onlyPosts.includes(getPostId(post)) : true)
       )
       .map((post) => ({
-        comments: getComments(post),
+        comments: getComments(post, config),
         // meta data isn't written to file, but is used to help with other things
         meta: {
           id: getPostId(post),

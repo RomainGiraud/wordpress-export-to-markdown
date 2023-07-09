@@ -100,6 +100,19 @@ const options = [
     description: "Get images from local folder",
     default: "",
   },
+  {
+    name: "comment-keys-to-encrypt",
+    type: "input",
+    description: "Keys from comment to encrypt (see public-key)",
+    default: "",
+    coerce: coerceIdList,
+  },
+  {
+    name: "public-key",
+    type: "file",
+    description: "Path to public key for encryption",
+    default: "",
+  },
 ];
 
 async function getConfig(argv) {
