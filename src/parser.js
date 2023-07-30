@@ -212,7 +212,7 @@ function processCategoryTags(post, domain) {
 
   return post.category
     .filter((category) => category.$.domain === domain)
-    .map(({ $: attributes }) => decodeURIComponent(attributes.nicename));
+    .map((cat) => decodeURIComponent(cat['_']));
 }
 
 function collectAttachedImages(data) {
