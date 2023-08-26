@@ -3,6 +3,8 @@ const turndownPluginGfm = require("turndown-plugin-gfm");
 const he = require("he");
 const cheerio = require("cheerio");
 const path = require("path");
+let urlExistAsync;
+import("url-exist").then((m) => { urlExistAsync = m.default });
 
 function initTurndownService() {
   const turndownService = new turndown({
@@ -90,6 +92,11 @@ function encodeText(text) {
   return text.trim().replace('"', '&quot;');
 }
 
+async function urlExist(u) {
+  var v = await urlExistAsync(u);
+  return v;
+}
+
 function parseFigureSingle($, node) {
   let image;
   let caption = "";
@@ -110,8 +117,14 @@ function parseFigureSingle($, node) {
 
     let href = a.attr('href');
     let src = img.attr('src');
-    if (href != src) {
-      throw `Not the same link: a[href] ${href} / img[src] ${src}`;
+    if (!href.startsWith('blob:') && href != src) {
+      if (urlExist(href)) {
+        img.attr("src", href)
+      } else if (urlExist(src)) {
+        // img is the correct one
+      } else {
+        throw `Not the same link: a[href] ${href} / img[src] ${src}`;
+      }
     }
 
     image = img;
@@ -224,6 +237,9 @@ function getPostContent(post, turndownService, config) {
   writeGallery($.root(), $.root().appendTo);
 
   let imageRegexp = content.match(/<img[^>]*>/g);
+  if (imageRegexp === null) {
+    imageRegexp = [];
+  }
   if (imageList.length != imageRegexp.length) {
     console.log(`Count images: ${imageList.length} / ${imageRegexp.length}`)
     console.log(imageList)

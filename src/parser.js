@@ -41,6 +41,9 @@ function encrypt(value, keyFile) {
 }
 
 function getComments(post, config) {
+  if (!("comment" in post)) {
+    return [];
+  }
   return post.comment
     .filter(comment => comment.comment_approved[0] == "1")
     .map((comment) => {
@@ -296,6 +299,7 @@ function cleanImages(posts, config) {
   ];
   posts.forEach((post) => {
     post.meta.imageUrls = post.meta.imageUrls.map((imageUrl) => {
+      imageUrl = decodeURI(imageUrl);
       let newUrl = imageUrl;
       patterns.forEach((pattern) => {
         const dirname = path.dirname(newUrl);
