@@ -123,8 +123,9 @@ function collectPosts(data, postTypes, config) {
         frontmatter: {
           title: getPostTitle(post),
           date: getPostDate(post),
-          old_url: getPostLink(post),
+          // old_url: getPostLink(post),
           categories: getCategories(post),
+          countries: getCountries(post),
           tags: getTags(post),
         },
         content: translator.getPostContent(post, turndownService, config),
@@ -195,6 +196,11 @@ function getPostDate(post) {
 
 function getPostLink(post) {
   return post.link[0];
+}
+
+function getCountries(post) {
+  const countries = processCategoryTags(post, "country");
+  return countries;
 }
 
 function getCategories(post) {
