@@ -194,14 +194,14 @@ function getPostContent(post, turndownService, config) {
       "images": [],
     };
   }
-  function writeGallery(object, insertFn) {
+  function writeGallery(writeFn) {
     pushGallery();
 
     for (const g of galleries) {
       let images = g.images.map((i) => {
         return `<img src="${i.src}" alt="${he.encode(i.caption)}" />`;
       }).join("\n");
-      insertFn.call(object, `<figure>\n<figcaption>${he.encode(g.caption)}</figcaption>\n${images}\n</figure>\n`);
+      writeFn(`<figure>\n<figcaption>${he.encode(g.caption)}</figcaption>\n${images}\n</figure>\n`);
     }
     galleries = [];
   }
@@ -230,11 +230,11 @@ function getPostContent(post, turndownService, config) {
       }
       node.remove();
     } else {
-      writeGallery(node, node.before);
+      writeGallery((s) => node.before(s));
     }
   }
   // push remaining gallery
-  writeGallery($.root(), $.root().appendTo);
+  writeGallery((s) => $(s).appendTo($.root()));
 
   let imageRegexp = content.match(/<img[^>]*>/g);
   if (imageRegexp === null) {
