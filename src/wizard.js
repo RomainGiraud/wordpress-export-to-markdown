@@ -213,7 +213,7 @@ function parseCommandLine(argv) {
       // makes for an easy way to flag (for later) if it should be excluded from the wizard
       input.isProvided = true;
       if (! ("coerce" in input))
-        return true;
+        return value;
       return input.coerce(value);
     };
     commander.option(flag, input.description, coerce, input.default);
