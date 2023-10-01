@@ -269,33 +269,10 @@ async function loadImageFilePromiseLocal(imagePath) {
   return await fsp.readFile(imagePath);
 }
 
-function getCommentPath(comment, post, config) {
-  const dt = luxon.DateTime.fromISO(comment.date);
-
-  const pathSegments = [config.outputComments];
-  let slugFragment = getBasePath(post, config)
-  pathSegments.push(slugFragment, `comment-${dt.toMillis()}.yml`);
-
-  return path.join(...pathSegments);
-}
-
 function getBasePath(post, config) {
+  const pathSegments = [];
+
   const dt = luxon.DateTime.fromISO(post.frontmatter.date);
-
-  // create slug fragment, possibly date prefixed
-  let slugFragment = post.meta.slug;
-  if (config.prefixDate) {
-    slugFragment = dt.toFormat("yyyy-LL-dd") + "-" + slugFragment;
-  }
-
-  return slugFragment;
-}
-
-function getPostPath(post, config) {
-  const dt = luxon.DateTime.fromISO(post.frontmatter.date);
-
-  // start with base output dir
-  const pathSegments = [config.output];
 
   // create segment for post type if we're dealing with more than just "post"
   if (config.includeOtherTypes) {
@@ -310,15 +287,42 @@ function getPostPath(post, config) {
     pathSegments.push(dt.toFormat("LL"));
   }
 
+  if (config.frontmatterFolders) {
+    var seg = '(post.frontmatter.' + config.frontmatterFolders + ')';
+    seg = eval(seg);
+    if (seg != undefined)
+      pathSegments.push(seg);
+  }
+
   // create slug fragment, possibly date prefixed
-  let slugFragment = getBasePath(post, config)
+  let slugFragment = post.meta.slug;
+  if (config.prefixDate) {
+    slugFragment = dt.toFormat("yyyy-LL-dd") + "-" + slugFragment;
+  }
+  pathSegments.push(slugFragment);
+
+  return pathSegments;
+}
+
+function getPostPath(post, config) {
+  // start with base output dir
+  const pathSegments = [config.output, ...getBasePath(post, config)];
 
   // use slug fragment as folder or filename as specified
   if (config.postFolders) {
-    pathSegments.push(slugFragment, "index.md");
+    pathSegments.push("index.md");
   } else {
-    pathSegments.push(slugFragment + ".md");
+    pathSegments.push(".md");
   }
+
+  return path.join(...pathSegments);
+}
+
+function getCommentPath(comment, post, config) {
+  const pathSegments = [config.outputComments, ...getBasePath(post, config)];
+
+  const dt = luxon.DateTime.fromISO(comment.date);
+  pathSegments.push(`comment-${dt.toMillis()}.yml`);
 
   return path.join(...pathSegments);
 }

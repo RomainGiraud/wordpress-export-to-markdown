@@ -48,6 +48,12 @@ const options = [
     default: false,
   },
   {
+    name: "frontmatter-folders",
+    type: "format",
+    description: "Create folder(s) from frontmatter elements",
+    default: "",
+  },
+  {
     name: "post-folders",
     aliases: ["postfolders"],
     type: "boolean",
