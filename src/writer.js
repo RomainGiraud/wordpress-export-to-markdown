@@ -141,7 +141,7 @@ async function writeMarkdownFilesPromise(posts, config) {
         `\nSaving ${remainingCount} posts (${skipCount} already exist)...`
       );
     }
-    await processPayloadsPromise(payloads, loadMarkdownFilePromise);
+    await processPayloadsPromise(payloads, (post) => loadMarkdownFilePromise(post, config));
   }
 }
 
@@ -176,10 +176,14 @@ async function loadCommentFilePromise(comment) {
   return output;
 }
 
-async function loadMarkdownFilePromise(post) {
+async function loadMarkdownFilePromise(post, config) {
   let output = "---\n";
 
   Object.entries(post.frontmatter).forEach(([key, value]) => {
+    if (config.frontmatterExclude.includes(key)) {
+      return;
+    }
+
     let outputValue;
     if (Array.isArray(value)) {
       if (value.length > 0) {

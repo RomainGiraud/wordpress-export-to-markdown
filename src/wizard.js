@@ -119,6 +119,13 @@ const options = [
     description: "Path to public key for encryption",
     default: "",
   },
+  {
+    name: "frontmatter-exclude",
+    type: "input",
+    description: "List frontmatter variables to exclude, separated by comma",
+    default: "",
+    coerce: coerceIdList,
+  },
 ];
 
 async function getConfig(argv) {
