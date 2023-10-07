@@ -4,6 +4,8 @@ const fsp = require('fs/promises');
 const luxon = require("luxon");
 const path = require("path");
 const bent = require("bent");
+const YAML = require('yaml');
+// const escape = require("html-escaper").escape;
 
 const shared = require("./shared");
 const settings = require("./settings");
@@ -146,34 +148,10 @@ async function writeMarkdownFilesPromise(posts, config) {
 }
 
 async function loadCommentFilePromise(comment) {
-  let output = "";
-
-  Object.entries(comment).forEach(([key, value]) => {
-    let outputValue;
-    if (Array.isArray(value)) {
-      if (value.length > 0) {
-        // array of one or more strings
-        outputValue = value.reduce(
-          (list, item) => `${list}\n  - "${item}"`,
-          ""
-        );
-      }
-    } else {
-      if (value.search('\n') !== -1) {
-        outputValue = `>-\n  ${value.replaceAll('\n', '\n  ')}`;
-      } else {
-        // single string value
-        const escapedValue = (value || "").replace(/"/g, '\\"');
-        outputValue = `"${escapedValue}"`;
-      }
-    }
-
-    if (outputValue !== undefined) {
-      output += `${key}: ${outputValue}\n`;
-    }
-  });
-
-  return output;
+  comment.message = comment.message.replaceAll('\r', '');
+  // comment.message = comment.message.replaceAll('\n', '<br>');
+  // comment.message = escape(comment.message);
+  return YAML.stringify(comment);
 }
 
 async function loadMarkdownFilePromise(post, config) {
