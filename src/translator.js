@@ -76,12 +76,12 @@ function initTurndownService() {
           let src = child.getAttribute("src");
           let alt = child.getAttribute("alt");
           if (alt.length != 0) {
-            alt = `'${he.encode(alt)}`
+            alt = `${he.encode(alt)}`
           }
-          images.push(`${src}${alt}`)
+          images.push(`{{< imgset src="${src}" title="${alt}" >}}`)
         }
       }
-      return "\n\n" + `{{< gallery caption="${he.encode(caption)}" images="${images.join('|')}" >}}` + "\n\n";
+      return "\n\n" + `{{< gallery caption="${he.encode(caption)}" >}}\n${images.join('\n')}\n{{< /gallery >}}` + "\n\n";
     },
   });
 
