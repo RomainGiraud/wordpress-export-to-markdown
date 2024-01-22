@@ -199,7 +199,7 @@ function getPostLink(post) {
 }
 
 function getCountries(post) {
-  const countries = processCategoryTags(post, "country");
+  const countries = processCategoryTags(post, "country", true);
   return countries;
 }
 
@@ -214,14 +214,19 @@ function getTags(post) {
   return processCategoryTags(post, "post_tag");
 }
 
-function processCategoryTags(post, domain) {
+function processCategoryTags(post, domain, useNicename=false) {
   if (!post.category) {
     return [];
   }
 
   return post.category
     .filter((category) => category.$.domain === domain)
-    .map((cat) => decodeURIComponent(cat['_']));
+    .map((cat) => {
+      if (useNicename) {
+        return cat['$'].nicename;
+      }
+      return decodeURIComponent(cat['_']);
+    });
 }
 
 function collectAttachedImages(data) {
