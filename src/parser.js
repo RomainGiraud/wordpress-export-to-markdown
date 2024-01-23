@@ -7,6 +7,7 @@ const nodersa = require('node-rsa')
 const shared = require("./shared");
 const settings = require("./settings");
 const translator = require("./translator");
+const { urlToLocal, checkFile } = require("./writer");
 
 async function parseFilePromise(config) {
   console.log("\nParsing...");
@@ -307,21 +308,42 @@ function cleanImages(posts, config) {
   const patterns = [
     /-[0-9]+x[0-9]+\./,
     /-scaled\./,
+    /-[0-9]\./,
   ];
   posts.forEach((post) => {
     post.meta.imageUrls = post.meta.imageUrls.map((imageUrl) => {
+
       imageUrl = decodeURI(imageUrl);
       let newUrl = imageUrl;
-      patterns.forEach((pattern) => {
+      patterns.every((pattern) => {
         const dirname = path.dirname(newUrl);
         const filename = path.basename(newUrl);
         const newFilename = filename.replace(pattern, ".");
         const tmp = path.join(dirname, newFilename);
-        if (filename != newFilename) {
-          post.content = post.content.replace(filename, newFilename);
-          if (path.basename(post.frontmatter.featured_image) == filename) {
-            post.frontmatter.featured_image = post.frontmatter.featured_image.replace(filename, newFilename);
+
+        if (filename == newFilename) {
+          return false;
+        }
+
+        let valid = false;
+        if (config.imagesFromFolder.length != 0) {
+          const localPath = urlToLocal(tmp, config.imagesFromFolder);
+          if (checkFile(localPath)) {
+            // local file exists, we can stop here
+            valid = true;
           }
+        } else {
+          // TODO: check if remote file exists
+          valid = true;
+        }
+
+        if (!valid) {
+          return false;
+        }
+
+        post.content = post.content.replace(filename, newFilename);
+        if (path.basename(post.frontmatter.featured_image) == filename) {
+          post.frontmatter.featured_image = post.frontmatter.featured_image.replace(filename, newFilename);
         }
         newUrl = tmp;
       });

@@ -202,13 +202,7 @@ async function writeImageFilesPromise(posts, config) {
         return [];
       } else {
         if (config.imagesFromFolder.length != 0) {
-          let pathSegments = [];
-          for (elem of imageUrl.split(path.sep).reverse()) {
-            if (elem == "uploads") break;
-            pathSegments.push(elem);
-          }
-          pathSegments.push(config.imagesFromFolder);
-          const localPath = path.resolve(path.join(...pathSegments.reverse()));
+          const localPath = urlToLocal(imageUrl, config.imagesFromFolder);
           if (checkFile(localPath)) {
             imageUrl = localPath;
           } else {
@@ -313,4 +307,17 @@ function checkFile(path) {
   return fs.existsSync(path);
 }
 
+function urlToLocal(imageUrl, folder) {
+  let pathSegments = [];
+  for (elem of imageUrl.split(path.sep).reverse()) {
+    if (elem == "uploads") break;
+    pathSegments.push(elem);
+  }
+  pathSegments.push(folder);
+  const localPath = path.resolve(path.join(...pathSegments.reverse()));
+  return localPath;
+}
+
 exports.writeFilesPromise = writeFilesPromise;
+exports.checkFile = checkFile;
+exports.urlToLocal = urlToLocal;
