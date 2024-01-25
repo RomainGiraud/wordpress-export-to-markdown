@@ -21,12 +21,8 @@ async function parseFilePromise(config) {
   const posts = collectPosts(data, postTypes, config);
 
   const images = [];
-  if (config.saveAttachedImages) {
-    images.push(...collectAttachedImages(data));
-  }
-  if (config.saveScrapedImages) {
-    images.push(...collectScrapedImages(data, postTypes));
-  }
+  images.push(...collectAttachedImages(data, config.saveAttachedImages));
+  images.push(...collectScrapedImages(data, postTypes, config.saveScrapedImages));
 
   mergeImagesIntoPosts(images, posts);
   cleanImages(posts, config);
@@ -230,7 +226,7 @@ function processCategoryTags(post, domain, useNicename=false) {
     });
 }
 
-function collectAttachedImages(data) {
+function collectAttachedImages(data, save) {
   const images = getItemsOfType(data, "attachment")
     // filter to certain image file types
     .filter((attachment) =>
@@ -240,13 +236,14 @@ function collectAttachedImages(data) {
       id: attachment.post_id[0],
       postId: attachment.post_parent[0],
       url: attachment.attachment_url[0],
+      save,
     }));
 
   console.log(images.length + " attached images found.");
   return images;
 }
 
-function collectScrapedImages(data, postTypes) {
+function collectScrapedImages(data, postTypes, save) {
   const images = [];
   postTypes.forEach((postType) => {
     getItemsOfType(data, postType).forEach((post) => {
@@ -266,6 +263,7 @@ function collectScrapedImages(data, postTypes) {
           id: -1,
           postId: postId,
           url,
+          save,
         });
       });
     });
@@ -281,7 +279,7 @@ function mergeImagesIntoPosts(images, posts) {
       let shouldAttach = false;
 
       // this image was uploaded as an attachment to this post
-      if (image.postId === post.meta.id) {
+      if (image.postId === post.meta.id && image.save) {
         shouldAttach = true;
       }
 
