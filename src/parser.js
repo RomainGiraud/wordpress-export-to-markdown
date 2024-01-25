@@ -305,10 +305,11 @@ function cleanImages(posts, config) {
     return;
   }
 
+  // these patterns are used by WordPress to generate different sizes of the same image
+  // when a new image is uploaded, if the filename already exists then '-1' will be added
   const patterns = [
     /-[0-9]+x[0-9]+\./,
     /-scaled\./,
-    /-[0-9]\./,
   ];
   posts.forEach((post) => {
     post.meta.imageUrls = post.meta.imageUrls.map((imageUrl) => {
@@ -322,7 +323,7 @@ function cleanImages(posts, config) {
         const tmp = path.join(dirname, newFilename);
 
         if (filename == newFilename) {
-          return false;
+          return true;
         }
 
         let valid = false;
@@ -334,11 +335,12 @@ function cleanImages(posts, config) {
           }
         } else {
           // TODO: check if remote file exists
+          // with link-exists package
           valid = true;
         }
 
         if (!valid) {
-          return false;
+          return true;
         }
 
         post.content = post.content.replace(filename, newFilename);
@@ -346,6 +348,7 @@ function cleanImages(posts, config) {
           post.frontmatter.featured_image = post.frontmatter.featured_image.replace(filename, newFilename);
         }
         newUrl = tmp;
+        return false;
       });
       return newUrl;
     });

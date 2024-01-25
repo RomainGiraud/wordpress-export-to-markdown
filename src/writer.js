@@ -201,7 +201,7 @@ async function writeImageFilesPromise(posts, config) {
         skipCount++;
         return [];
       } else {
-        if (config.imagesFromFolder.length != 0) {
+        if (config.imagesFromFolder) {
           const localPath = urlToLocal(imageUrl, config.imagesFromFolder);
           if (checkFile(localPath)) {
             imageUrl = localPath;
@@ -215,7 +215,6 @@ async function writeImageFilesPromise(posts, config) {
           destinationPath,
           delay,
         };
-        //console.log(filename);
         delay += settings.image_file_request_delay;
         return [payload];
       }
